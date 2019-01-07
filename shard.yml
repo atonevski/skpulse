@@ -1,0 +1,13 @@
+name: skpulse
+version: 0.1.0
+
+authors:
+  - Andreja Tonevski <atonevski@gmail.com>
+
+targets:
+  skpulse:
+    main: src/skpulse.cr
+
+crystal: 0.27.0
+
+license: MIT
