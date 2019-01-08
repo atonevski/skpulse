@@ -1,3 +1,5 @@
+require "./*"
+
 require "http/client"
 require "uri"
 require "json"
@@ -146,6 +148,12 @@ module SKPulse
       printf "%-19s", "time"
       types.each {|t| printf " %11.11s", t}
       puts
+
+      ln = "─"*60
+      printf "%-19.19s", ln
+      types.each {|t| printf " %11.11s", ln}
+      puts
+
       tms.each do |t|
         printf "%-19.19s", t
         h[t].each do |m|
@@ -154,15 +162,28 @@ module SKPulse
         puts
       end
     end
+
+    def print_sensors
+      ln = "─"*60
+      printf "%-15.15s %30.30s %10.10s %25.25s\n", "descriptions", "id",
+        "status", "position"
+      printf "%-15.15s %30.30s %10.10s %25.25s\n", ln, ln, ln, ln
+      @sensors.as_a.each do |s|
+        printf "%-15.15s %30.30s %10.10s %25.25s\n", s["description"], s["sensorId"],
+          s["status"], s["position"]
+      end
+      puts
+    end
   end
   
-  skp_api = API.new
-  skp_api.get_sensors
+  # skp_api = API.new
+  # skp_api.get_sensors
 
-  sensor_id = skp_api.sensors[1]["sensorId"].as_s
-  skp_api.get_24h
-  
-  skp_api.print_sensor sensor_id
+  # sensor_id = skp_api.sensors[1]["sensorId"].as_s
+  # skp_api.get_24h
+ 
+  # skp_api.print_sensors
+  # skp_api.print_sensor sensor_id
 
   # # TODO:
   # - levels: borrow from air.cr
