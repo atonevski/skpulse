@@ -11,7 +11,7 @@ module SKPulseCLI
 
     parser.on "-t TYPE", "--type=TYPE", 
       "TYPE: pm10|pm25|noise|temp[erature]|humidity|any" do |t|
-      unless t =~ /^pm10|pm25|noise|temp(erature)?|humidity|any$/i
+      unless /^(pm10|pm25|noise|temp(erature)?|humidity|any)$/i =~ t
         puts "Invalid TYPE: '#{ t }'"
         puts parser
         exit 1
@@ -27,14 +27,14 @@ module SKPulseCLI
 
   # show help if no args
   puts p if ARGV.size == 0
-  # skp_api = SKPulse::API.new
-  # skp_api.get_sensors
+  skp_api = SKPulse::API.new
+  skp_api.get_sensors
 
   ARGV.each do |cmd|
     case cmd
     when "list"
       # list_sensors skp_api
-      # skp_api.print_sensors
+      skp_api.print_sensors
     end
   end
 

@@ -169,8 +169,9 @@ module SKPulse
         "status", "position"
       printf "%-15.15s %30.30s %10.10s %25.25s\n", ln, ln, ln, ln
       @sensors.as_a.each do |s|
-        printf "%-15.15s %30.30s %10.10s %25.25s\n", s["description"], s["sensorId"],
-          s["status"], s["position"]
+        pos = s["position"].as_s.split ","
+        printf "%-15.15s %30.30s %10.10s %12.12s, %-12.12s\n", s["description"], s["sensorId"],
+          s["status"], pos[0], pos[1]
       end
       puts
     end
