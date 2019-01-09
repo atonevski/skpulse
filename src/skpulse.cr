@@ -240,6 +240,11 @@ module SKPulse
       puts "Id: #{ sensor["sensorId"] }"
       puts "Status: #{ sensor["status"] }"
       puts 
+
+      # no data
+      return unless types.size > 0
+
+      # header
       printf "%-19s", "time"
       types.each {|t| printf " %11.11s", t}
       puts

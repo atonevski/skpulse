@@ -1,6 +1,7 @@
 require "option_parser"
 
 module SKPulseCLI
+  # default options
   opts = {
     "type"  => "PM10",
     "sensor" => "any"
@@ -17,6 +18,10 @@ module SKPulseCLI
         exit 1
       end
       opts["type"] = t.downcase
+    end
+
+    parser.on "-s SENSOR", "--sensor=SENSOR", "SENSOR: sensor_id | description" do |s|
+      opts["sensor"] = s
     end
 
     parser.on "-h", "--help", "Show this help" do
@@ -37,8 +42,18 @@ module SKPulseCLI
       skp_api.print_sensors
     when "24"
       skp_api.get_24h
-      skp_api.sensors.as_a.each do |s|
-        skp_api.print_sensor s["sensorId"].as_s
+      if opts["sensor"] == "any"
+        skp_api.sensors.as_a.each do |s|
+          skp_api.print_sensor s["sensorId"].as_s
+        end
+      else
+        re = /^#{ opts["sensor"] }/i
+        sarr = skp_api.sensors.as_a.select do |s|
+          s["sensorId"].as_s =~ re || s["description"].as_s =~ re
+        end
+        sarr.each do |s|
+          skp_api.print_sensor s["sensorId"].as_s
+        end
       end
     else
       skp_api.get_24h
