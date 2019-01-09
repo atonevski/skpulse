@@ -35,6 +35,14 @@ module SKPulseCLI
     when "list"
       # list_sensors skp_api
       skp_api.print_sensors
+    when "24"
+      skp_api.get_24h
+      skp_api.sensors.as_a.each do |s|
+        skp_api.print_sensor s["sensorId"].as_s
+      end
+    else
+      skp_api.get_24h
+      skp_api.print_sensor skp_api.sensors[1]["sensorId"].as_s
     end
   end
 

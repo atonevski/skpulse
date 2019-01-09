@@ -4,16 +4,51 @@ require "http/client"
 require "uri"
 require "json"
 require "base64"
+require "colorize"
 
 # TODO: Write documentation for `Skpulse`
 module SKPulse
   VERSION = "0.1.0"
- 
+
   class API
     USERNAME = "atonevski"
     PASSWORD = "pv1530kay" 
     CITY = "skopje"
     TM_FMT = "%Y-%m-%dT%H:%M:%S%:z"
+
+    TYPES = {
+      :pm10 => {
+        :levels => {
+          :good            =>   0...50,
+          :moderate        =>  50...100,
+          :sensitive       => 100...250,
+          :unhealthy       => 250...350,
+          :very_unhealthy  => 350...430,
+          :hazardous       => 430...2000
+        }
+      },
+      :pm25 => {
+        :levels => {
+          :good            =>   0...30,
+          :moderate        =>  30...60,
+          :sensitive       =>  60...90,
+          :unhealthy       =>  90...120,
+          :very_unhealthy  => 120...250,
+          :hazardous       => 250...2000
+        }
+      },
+      :noise => {
+        :levels => {
+          :good            =>   0...20, # silent/faint
+          :moderate        =>  20...40, # normal
+          :sensitive       =>  40...60, # noisy
+          :unhealthy       =>  60...80, # loud
+          :very_unhealthy  =>  80...120,# 
+          :hazardous       => 120...190 # hazardous
+        }
+      }
+    }
+
 
     getter sensors : JSON::Any
     getter measurements : JSON::Any
@@ -25,6 +60,63 @@ module SKPulse
       @enc64 = Base64.strict_encode @username + ":" + @password
     end
 
+    def self.type_to_sym(t : String)
+      case t
+      when "pm10"
+        :pm10
+      when "pm25"
+        :pm25
+      when "humidity"
+        :humidity
+      when "noise"
+        :noise
+      else
+        :any
+      end
+    end
+    
+    def self.type_level(type : Symbol, val : Int32)
+      return :undefined unless [:pm10, :pm25, :noise].includes? type
+
+      levels = TYPES[type][:levels]
+                .as Hash(Symbol, Range(Int32, Int32))
+
+      case
+      when levels[:good].includes? val
+        :good
+      when levels[:moderate].includes? val
+        :moderate
+      when levels[:sensitive].includes? val
+        :sensitive
+      when levels[:unhealthy].includes? val
+        :unhealthy
+      when levels[:very_unhealthy].includes? val
+        :very_unhealthy
+      when levels[:hazardous].includes? val
+        :hazardous
+      else
+        :undefined
+      end
+    end
+
+    def self.level_color(level : Symbol)
+      case level
+      when :good
+        :green
+      when :moderate
+        :yellow
+      when :sensitive
+        :yellow
+      when :unhealthy
+        :red
+      when :very_unhealthy
+        :red
+      when :hazardous
+        :magenta
+      else
+        :white
+      end
+    end
     # you should call immediately after .new
     def get_sensors
       HTTP::Client.new host: @hostname, port: 443, tls: true do |client|
@@ -141,6 +233,9 @@ module SKPulse
         h[m["stamp"].as_s][type_index[m["type"]]] = m["value"].as_s
       end
 
+      Colorize.on_tty_only!
+      
+      puts
       puts "Sensor: #{ sensor["description"] }"
       puts "Id: #{ sensor["sensorId"] }"
       puts "Status: #{ sensor["status"] }"
@@ -156,8 +251,14 @@ module SKPulse
 
       tms.each do |t|
         printf "%-19.19s", t
-        h[t].each do |m|
-          printf " %11.11s", (m.nil? ? "" : m)
+        h[t].each_with_index do |m, i|
+          if m.nil? || !["pm10", "pm25"].includes?(types[i])
+            printf " %11.11s", (m.nil? ? "" : m)
+          else
+            level = API.type_level API.type_to_sym(types[i]), m.to_i32
+            color = API.level_color level
+            print (sprintf " %11.11s", m).colorize(color)
+          end
         end
         puts
       end
@@ -177,15 +278,6 @@ module SKPulse
     end
   end
   
-  # skp_api = API.new
-  # skp_api.get_sensors
-
-  # sensor_id = skp_api.sensors[1]["sensorId"].as_s
-  # skp_api.get_24h
- 
-  # skp_api.print_sensors
-  # skp_api.print_sensor sensor_id
-
   # # TODO:
   # - levels: borrow from air.cr
   # - CLI interface
