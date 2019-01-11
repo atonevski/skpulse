@@ -82,8 +82,6 @@ module SKPulseCLI
         end
       end
     when "avg"
-      puts "from: #{ opts["from"] }" if opts.has_key? "from"
-      puts "to: #{ opts["to"] }"
       skp_api.print_avg opts["from"].as(Time), opts["to"].as(Time)
     else # default command
       skp_api.get_24h

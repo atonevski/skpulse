@@ -37,6 +37,46 @@ module SKPulse
           :hazardous       => 250...2000
         }
       },
+      :co => {
+        :levels => {
+          :good            =>   0...1,
+          :moderate        =>   1...2,
+          :sensitive       =>   2...9,
+          :unhealthy       =>   9...17,
+          :very_unhealthy  =>  17...34,
+          :hazardous       =>  34...100
+        }
+      },
+      :no2 => {
+        :levels => {
+          :good            =>    0...40,
+          :moderate        =>   40...80,
+          :sensitive       =>   80...180,
+          :unhealthy       =>  180...280,
+          :very_unhealthy  =>  280...400,
+          :hazardous       =>  400...1000
+        }
+      },
+      :o3 => {
+        :levels => {
+          :good            =>    0...50,
+          :moderate        =>   50...100,
+          :sensitive       =>  100...168,
+          :unhealthy       =>  168...208,
+          :very_unhealthy  =>  208...748,
+          :hazardous       =>  748...2000
+        }
+      },
+      :so2 => {
+        :levels => {
+          :good            =>     0...40,
+          :moderate        =>    40...80,
+          :sensitive       =>    80...380,
+          :unhealthy       =>   380...800,
+          :very_unhealthy  =>   800...1600,
+          :hazardous       =>  1600...5000
+        }
+      },
       :noise => {
         :levels => {
           :good            =>   0...20, # silent/faint
@@ -70,13 +110,22 @@ module SKPulse
         :humidity
       when "noise"
         :noise
+      when "o3"
+        :o3
+      when "no2"
+        :no2
+      when "co"
+        :co
+      when "so2"
+        :so2
       else
         :any
       end
     end
     
     def self.type_level(type : Symbol, val : Int32)
-      return :undefined unless [:pm10, :pm25, :noise].includes? type
+      return :undefined unless [:pm10, :pm25, :noise, :no2, :co, :o3, :so2]
+                                .includes? type
 
       levels = TYPES[type][:levels]
                 .as Hash(Symbol, Range(Int32, Int32))
@@ -272,12 +321,13 @@ module SKPulse
     def print_avg(from : Time, to : Time)
       # all sensor ids
       ids = @sensors.as_a.map {|s| s["sensorId"].as_s}
+      all_types = [] of String
 
       # iterate through all sensors
-      avg = [] of Array(Hash(String, String|Array(Hash(String, Int32|Nil))))
+      avg = [] of Hash(String, String|Array(Hash(String, String|Int32|Nil)))
       ids.each do |id|
         get_raw_data_by_sensor id, from, to
-        id_avg = [] of Array(Hash(String, Int32|Nil))
+        id_avg = [] of Hash(String, String|Int32|Nil)
         types = @measurements.as_a.map {|m| m["type"].as_s}.uniq 
         types.each do |type|
           t = @measurements.as_a.reduce({ "sum" => 0, "count" => 0 }) do |s, v|
@@ -287,15 +337,56 @@ module SKPulse
               s
             end
           end
+          all_types << type unless all_types.includes? type
           id_avg << { 
             "type" => type,
-            "value" => (t["count"] > 0 ? t["sum"]/t["count"] : Nil)
+            "value" => (t["count"] > 0 ? t["sum"]/t["count"] : nil)
           } 
         end
+        name = @sensors.as_a.find {|s| s["sensorId"] == id}
+                .as(JSON::Any)["description"].as_s
         avg << {
           "sensorId" => id,
-          "avg" => avg
+          "name" => name,
+          "avg" => id_avg
         }
+      end
+
+      Colorize.on_tty_only!
+
+      # add time interval here
+      puts
+      printf "%72.72s\n", "from: " + from.to_s(TM_FMT)
+      printf "%72.72s\n", "to: " + to.to_s(TM_FMT)
+      puts
+
+      ln = "─"*60
+      printf "%-18.18s", "name"
+      all_types.each {|t| printf " %5.5s", t}
+      puts
+
+      printf "%-18.18s", ln
+      all_types.size.times {printf " %5.5s", ln}
+      puts
+
+      avg.each do |a|
+        printf "%-18.18s", a["name"]
+
+        all_types.each do |type|
+          t = a["avg"].as(Array(Hash(String, String|Int32|Nil)))
+              .find do |x|
+                x["type"].as(String) == type
+              end
+          if t.nil? || t["value"].nil?
+            printf " %5.5s", ""
+          else
+            level = API.type_level API.type_to_sym(type), t["value"].as(Int32)
+            color = API.level_color level
+            print (sprintf " %5.5d", t["value"].as(Int32)).colorize(color)
+            # printf " %5.5d", t["value"].as(Int32)
+          end
+        end
+        puts
       end
     end
 
