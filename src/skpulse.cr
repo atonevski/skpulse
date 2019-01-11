@@ -269,6 +269,36 @@ module SKPulse
       end
     end
 
+    def print_avg(from : Time, to : Time)
+      # all sensor ids
+      ids = @sensors.as_a.map {|s| s["sensorId"].as_s}
+
+      # iterate through all sensors
+      avg = [] of Array(Hash(String, String|Array(Hash(String, Int32|Nil))))
+      ids.each do |id|
+        get_raw_data_by_sensor id, from, to
+        id_avg = [] of Array(Hash(String, Int32|Nil))
+        types = @measurements.as_a.map {|m| m["type"].as_s}.uniq 
+        types.each do |type|
+          t = @measurements.as_a.reduce({ "sum" => 0, "count" => 0 }) do |s, v|
+            if v["type"] == type && !v["value"].nil? 
+              { "sum" => s["sum"] + v["value"].as_s.to_i32, "count" => s["count"] + 1 }
+            else
+              s
+            end
+          end
+          id_avg << { 
+            "type" => type,
+            "value" => (t["count"] > 0 ? t["sum"]/t["count"] : Nil)
+          } 
+        end
+        avg << {
+          "sensorId" => id,
+          "avg" => avg
+        }
+      end
+    end
+
     def print_sensors
       ln = "─"*60
       printf "%-15.15s %30.30s %10.10s %25.25s\n", "descriptions", "id",

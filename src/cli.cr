@@ -1,14 +1,18 @@
 require "option_parser"
+require "time"
 
 module SKPulseCLI
+  DTM_FMT = "%Y-%m-%dT%H:%M"
+
   # default options
-  opts = {
+  opts : Hash(String, String|Time) = {
     "type"  => "PM10",
-    "sensor" => "any"
+    "sensor" => "any",
+    "to" => Time.now
   }
 
   p = OptionParser.parse! do |parser|
-    parser.banner = "Usage skpulse list|24|..."
+    parser.banner = "Usage skpulse list|24|avg|..."
 
     parser.on "-t TYPE", "--type=TYPE", 
       "TYPE: pm10|pm25|noise|temp[erature]|humidity|any" do |t|
@@ -22,6 +26,28 @@ module SKPulseCLI
 
     parser.on "-s SENSOR", "--sensor=SENSOR", "SENSOR: sensor_id | description" do |s|
       opts["sensor"] = s
+    end
+
+    parser.on "-f FROM", "--from=FROM", "FROM: yyyy-mm-ddTHH:MM" do |from|
+      begin
+        opts["from"] = Time.parse from, DTM_FMT, Time::Location.local
+      rescue e
+        puts "Invalid datetime format: #{ e.message }"
+        puts
+        puts parser
+        exit 1
+      end
+    end
+
+    parser.on "-e TO", "--to=TO", "TO: yyyy-mm-ddTHH:MM" do |to|
+      begin
+        opts["to"] = Time.parse to, DTM_FMT, Time::Location.local
+      rescue e
+        puts "Invalid datetime format: #{ e.message }"
+        puts
+        puts parser
+        exit 1
+      end
     end
 
     parser.on "-h", "--help", "Show this help" do
@@ -55,7 +81,11 @@ module SKPulseCLI
           skp_api.print_sensor s["sensorId"].as_s
         end
       end
-    else
+    when "avg"
+      puts "from: #{ opts["from"] }" if opts.has_key? "from"
+      puts "to: #{ opts["to"] }"
+      skp_api.print_avg opts["from"].as(Time), opts["to"].as(Time)
+    else # default command
       skp_api.get_24h
       skp_api.print_sensor skp_api.sensors[1]["sensorId"].as_s
     end
