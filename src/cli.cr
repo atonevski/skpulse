@@ -8,7 +8,8 @@ module SKPulseCLI
   opts : Hash(String, String|Time) = {
     "type"  => "PM10",
     "sensor" => "any",
-    "to" => Time.now
+    "to" => Time.now,
+    "from" => Time.now() - Time::Span.new(0, 24, 0, 0)
   }
 
   p = OptionParser.parse! do |parser|
@@ -82,6 +83,7 @@ module SKPulseCLI
         end
       end
     when "avg"
+      puts "From #{ opts["from"] }"
       skp_api.print_avg opts["from"].as(Time), opts["to"].as(Time)
     else # default command
       skp_api.get_24h
